@@ -1,11 +1,20 @@
 import random
-from global_vars import ICELANDIC_STOCKS
+from global_vars import ICELANDIC_STOCKS, ICELANDIC_MARKET_CLOSED_DATES
 from data_retriever import call_option_stock_price, get_current_stock_price
 
 from datetime import timedelta, date
 import numpy as np
 import matplotlib.pyplot as plt
 import yfinance as yf
+
+
+def adjust_date(date: date):
+    """Adjust weekend dates to the last trading day"""
+    if date in ICELANDIC_MARKET_CLOSED_DATES or date.isoweekday() == 6: # 6 is a saturday
+        return adjust_date(date - timedelta(days=1))
+    if date.isoweekday() == 7: # 7 is sunday
+        return adjust_date(date - timedelta(days=2))
+    return date
 
 
 def get_random_stock():
@@ -16,30 +25,24 @@ def get_random_stock():
     
 
 def get_random_dates(stock_name):
-    stock_ticker = yf.Ticker(stock_name)
-    hist = stock_ticker.history(period="max")
-    first_date = hist.index.min().date()
-    last_date = hist.index.max().date()
-    days_diff = (last_date - first_date).days
-
+    hist = yf.Ticker(stock_name).history(period="max")
+    dates = hist.index.date
     while True:
-        end = random.randint(0, days_diff - 30)
-        start = random.randint(end, days_diff)
-        diff = start - end
-        start_date, end_date = date.today() - timedelta(days=start), date.today() - timedelta(days=end)
-        if diff > 30 and diff < 10*365 and start_date in hist.index and end_date in hist.index:
-            break
-    return start_date, end_date
+        start_date, end_date = sorted(random.sample(list(dates), 2))
+        delta = (end_date - start_date).days
+        if 30 < delta < 10 * 365:
+            return start_date, end_date
 
 
 def simulate_call():
-    number_of_sims = 10
+    number_of_sims = 20
     gain_loss = list()
     buy_budget = 100
     for _ in range(number_of_sims):
         try:
             stock_name = get_random_stock()
             start_date, end_date = get_random_dates(stock_name=stock_name)
+            print(f"{stock_name} - {start_date} -> {end_date}")
 
             start_stock_price, end_stock_price = get_current_stock_price(stock_name=stock_name, current_date=start_date), get_current_stock_price(stock_name=stock_name, current_date=end_date)
 
@@ -51,7 +54,7 @@ def simulate_call():
                 print(f"Invalid option price: {call_option_price}")
                 continue
 
-            gain_loss.append((max(end_stock_price - strike_price, 0) - call_option_price) * buy_ratio) 
+            gain_loss.append(max(end_stock_price - strike_price, 0) * buy_ratio - buy_budget) 
         except:
             continue
     return gain_loss
@@ -70,7 +73,7 @@ print(sum(gain_loss))
 print(np.average(gain_loss))
 print(len(cum_gain_loss))
 plt.plot(cum_gain_loss)
-plt.xlabel("Time")
+plt.xlabel("Stocks")
 plt.ylabel("Cumulative gain/loss")
 plt.title("Cumulative Gain/Loss")
 plt.grid(True)

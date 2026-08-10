@@ -4,6 +4,7 @@ from datetime import date
 
 FLV_URL: str = "https://sedlabanki.is/library/gagnatorg/vextir/fastir-lanstimavextir-flv/FLV_til_birtingar.xlsx" # constant maturity rates
 CBI_RATE_URL = "https://sedlabanki.is/xmltimeseries/Default.aspx"
+NASDAQ_FIXED_DURATION_YIELD_URL = "https://indexes.nasdaqomx.com/docs/Fixed_duration_indexYield_1998_to_202207.xlsx"
 REIBOR_SERIES = (
     (1 / 365, 12),
     (1 / 12, 13),
@@ -259,11 +260,4 @@ ICELANDIC_STOCKS = {
     "SKEL.IC": "Skel fjárfestingafélag",
     "SVN.IC": "Síldarvinnslan",
     "SYN.IC": "Sýn",
-
-    # Nasdaq First North Iceland
-    "ISLAX.IC": "Icelandic Salmon",
-    "KLDVK.IC": "Kaldvik",
-    "KLAPP.IC": "Klappir Grænar Lausnir",
-    "SFS-B.IC": "Sláturfélag Suðurlands",
-    "SOLID.IC": "Solid Clouds",
 }

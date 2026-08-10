@@ -65,4 +65,36 @@ def gamma(S: float, K: float, T: float, t: float, volatility: float, r: float) -
 
     return (scipy.stats.norm.pdf(d_plus) / (S * volatility * np.sqrt(tau)))
 
+def vega(S: float, K: float, T: float, t: float, volatility: float, r: float) -> float:
+    tau = T - t
+    D = discount_factor(r=r, tau=tau)
+    F = forward_price(S=S, D=D)
+    d_plus = d(sign="+", volatility=volatility, tau=tau, F=F, K=K)
+    return S * scipy.stats.norm.pdf(d_plus) * np.sqrt(tau)
 
+def theta(option: str, S: float, K: float, T: float, t: float, volatility: float, r: float) -> float:
+    tau = T - t
+    D = discount_factor(r=r, tau=tau)
+    F = forward_price(S=S, D=D)
+
+    d_plus = d(sign="+", volatility=volatility, tau=tau, F=F, K=K)
+    d_minus = d(sign="-", volatility=volatility, tau=tau, F=F, K=K)
+
+    x = -(S * scipy.stats.norm.pdf(d_plus) * volatility) / (2 * np.sqrt(tau))
+
+    if option == "call":
+        return x - (r * K * D * scipy.stats.norm.cdf(d_minus))
+    elif option == "put":
+        return x + (r * K * D * scipy.stats.norm.cdf(-d_minus))
+
+
+def rho(option: str, S: float, K: float, T: float, t: float, volatility: float, r: float) -> float:
+    tau = T - t
+    D = discount_factor(r=r, tau=tau)
+    F = forward_price(S=S, D=D)
+    d_minus = d(sign="-", volatility=volatility, tau=tau, F=F, K=K)
+
+    if option == "call":
+        return (K * tau * D * scipy.stats.norm.cdf(d_minus))
+    elif option == "put":
+        return -(K * tau * D * scipy.stats.norm.cdf(-d_minus))
