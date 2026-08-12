@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from interest_rate_data import RiskFreeRate
-from option_pricing import OptionPricing
+from option_info import OptionInfo
 from stock_data import StockData
 
 random.seed(202)
@@ -57,7 +57,7 @@ def simulate_call():
     end_stock_price = stock_data.get_current_stock_price(end_date)
 
     strike_price = start_stock_price * 1.05
-    call_option_price = OptionPricing().price(
+    call_option_price = OptionInfo().price(
         option_type="call",
         stock_price=start_stock_price,
         strike_price=strike_price,

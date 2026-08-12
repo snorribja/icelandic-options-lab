@@ -1,0 +1,24 @@
+[theme]
+base = "dark"
+primaryColor = "#4993F3"
+backgroundColor = "#09101A"
+secondaryBackgroundColor = "#101823"
+textColor = "#CED5DE"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap"
+headingFont = "Geist:https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap"
+baseRadius = "0.75rem"
+buttonRadius = "0.75rem"
+borderColor = "#2B3B50"
+showWidgetBorder = true
+linkColor = "#4993F3"
+linkUnderline = false
+chartCategoricalColors = ["#4993F3", "#3DBEF5", "#FBCB50", "#A78BFA", "#FB7185"]
+
+[server]
+headless = true
+
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false
