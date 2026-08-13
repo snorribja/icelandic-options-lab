@@ -19,7 +19,7 @@ with implemented_tab:
         "- No dividend yield\n"
         "- Decimal rate and volatility inputs\n"
         "- `T` and `t` measured in years, with time to maturity equal to `T - t`\n"
-        "- `OptionPricing` converts dates using calendar days divided by 365 and selects the existing call or put function"
+        "- `OptionInfo` converts dates using calendar days divided by 365 and selects the existing call or put function"
     )
 
     st.subheader("Greeks and dashboard units")

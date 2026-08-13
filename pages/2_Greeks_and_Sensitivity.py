@@ -52,7 +52,20 @@ with spot_tab:
             with container:
                 show_plot(line_figure(spot_data, "Spot", [column], title, "Spot (ISK)", unit))
     with st.expander("Spot-sensitivity data table"):
-        st.dataframe(spot_data, width="stretch", hide_index=True)
+        st.dataframe(
+            spot_data,
+            column_config={
+                "Spot": st.column_config.NumberColumn("Spot (ISK)", format="%.2f"),
+                "Price": st.column_config.NumberColumn("Price (ISK)", format="%.2f"),
+                "Delta": st.column_config.NumberColumn(format="%.4f"),
+                "Gamma": st.column_config.NumberColumn(format="%.6g"),
+                "Vega": st.column_config.NumberColumn("Vega (ISK / vol. pp)", format="%.4f"),
+                "Theta": st.column_config.NumberColumn("Theta (ISK / day)", format="%.4f"),
+                "Rho": st.column_config.NumberColumn("Rho (ISK / rate pp)", format="%.4f"),
+            },
+            width="stretch",
+            hide_index=True,
+        )
 
 with alternative_tab:
     volatilities = np.linspace(max(0.01, volatility * 0.25), max(volatility * 2, volatility + 0.05), 61)
@@ -70,8 +83,24 @@ with alternative_tab:
         show_plot(line_figure(maturity_data, "Maturity", ["Price"], "Option price vs time to expiration", "Time to expiration (years)", "Option value (ISK)"))
     with st.expander("Volatility and maturity data tables"):
         first, second = st.columns(2)
-        first.dataframe(volatility_data, width="stretch", hide_index=True)
-        second.dataframe(maturity_data, width="stretch", hide_index=True)
+        first.dataframe(
+            volatility_data.assign(Volatility=volatility_data["Volatility"] * 100),
+            column_config={
+                "Volatility": st.column_config.NumberColumn("Volatility", format="%.2f%%"),
+                "Price": st.column_config.NumberColumn("Price (ISK)", format="%.2f"),
+            },
+            width="stretch",
+            hide_index=True,
+        )
+        second.dataframe(
+            maturity_data,
+            column_config={
+                "Maturity": st.column_config.NumberColumn("Maturity (years)", format="%.3f"),
+                "Price": st.column_config.NumberColumn("Price (ISK)", format="%.2f"),
+            },
+            width="stretch",
+            hide_index=True,
+        )
 
 with heatmap_tab:
     heat_spots = np.linspace(max(0.01, spot * 0.5), spot * 1.5, 35)
@@ -86,12 +115,24 @@ with heatmap_tab:
     vega_surface = vega(S=spot_grid, K=strike, T=maturity, t=0.0, volatility=volatility_grid, r=rate) / 100
 
     heatmaps = [
-        (heat_volatilities, price_surface, "Price by spot and volatility", "Annualized volatility (decimal)", "Option value<br>(ISK)"),
-        (heat_maturities, delta_surface, "Delta by spot and maturity", "Maturity (years)", "Delta<br>(unitless)"),
-        (heat_maturities, gamma_surface, "Gamma by spot and maturity", "Maturity (years)", "Gamma<br>(per ISK)"),
-        (heat_volatilities, vega_surface, "Vega by spot and volatility", "Annualized volatility (decimal)", "Vega<br>(ISK / vol. pp)"),
+        (heat_volatilities, price_surface, "Price by spot and volatility", "Annualized volatility (decimal)", "Option value<br>(ISK)", "volatility", "{:.2f}"),
+        (heat_maturities, delta_surface, "Delta by spot and maturity", "Maturity (years)", "Delta<br>(unitless)", "maturity", "{:.4f}"),
+        (heat_maturities, gamma_surface, "Gamma by spot and maturity", "Maturity (years)", "Gamma<br>(per ISK)", "maturity", "{:.6g}"),
+        (heat_volatilities, vega_surface, "Vega by spot and volatility", "Annualized volatility (decimal)", "Vega<br>(ISK / vol. pp)", "volatility", "{:.4f}"),
     ]
-    for y_values, surface, title, y_title, value_title in heatmaps:
+    for y_values, surface, title, y_title, value_title, row_type, value_format in heatmaps:
         show_plot(heatmap_figure(heat_spots, y_values, surface, title, "Spot (ISK)", y_title, value_title))
         with st.expander(f"{title} table"):
-            st.dataframe(pd.DataFrame(surface, index=y_values, columns=heat_spots), width="stretch")
+            row_labels = (
+                [f"{value:.1%}" for value in y_values]
+                if row_type == "volatility"
+                else [f"{value:.3f}" for value in y_values]
+            )
+            table = pd.DataFrame(
+                [[value_format.format(value) for value in row] for row in surface],
+                index=row_labels,
+                columns=[f"{value:.2f}" for value in heat_spots],
+            )
+            table.index.name = "Volatility" if row_type == "volatility" else "Maturity (years)"
+            table.columns.name = "Spot (ISK)"
+            st.dataframe(table, width="stretch")

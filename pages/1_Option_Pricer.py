@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from global_vars import ICELANDIC_STOCKS
-from option_pricing import OptionPricing
+from option_info import OptionInfo
 from ui.dashboard import (
     COLORS,
     configure_page,
@@ -118,7 +118,7 @@ if spot is None or strike is None or volatility is None or rate is None or spot 
 
 maturity = (expiration - today).days / 365
 try:
-    option_value = OptionPricing().price(
+    option_value = OptionInfo().price(
         option_type=option_type,
         stock_price=spot,
         strike_price=strike,
