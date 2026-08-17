@@ -23,6 +23,7 @@ from stock_data import StockData
 
 ACCENT = "#4993F3"
 COLORS = (ACCENT, "#3DBEF5", "#FBCB50", "#A78BFA", "#FB7185")
+LINE_COLORS = (ACCENT, "#FBCB50", "#3DBEF5", "#A78BFA", "#FB7185")
 PLOT_CONFIG = {"displaylogo": False, "responsive": True}
 
 
@@ -356,7 +357,7 @@ def line_figure(
                 y=data[column],
                 mode="lines",
                 name=column,
-                line={"color": COLORS[index % len(COLORS)], "width": 2},
+                line={"color": LINE_COLORS[index % len(LINE_COLORS)], "width": 2},
                 hovertemplate=f"{x}: %{{x:,.4f}}<br>{column}: %{{y:,.6f}}<extra></extra>",
             )
         )

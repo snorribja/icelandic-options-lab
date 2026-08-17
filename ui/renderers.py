@@ -27,7 +27,8 @@ def render_hedging_results(
 ) -> None:
     """Render a hedge path with columns time, stock_price, option_value, delta,
     shares_held, cash_account, portfolio_value, and cumulative_transaction_costs.
-    ``summary`` may contain ``final_hedging_error``. No values are calculated here.
+    ``profit_loss`` is optional. ``summary`` may contain ``final_hedging_error``.
+    No values are calculated here.
     """
     data = _frame(path)
     if data is None or data.empty:
@@ -55,20 +56,21 @@ def render_hedging_results(
     if summary and "final_hedging_error" in summary:
         st.metric("Final hedging error", f"{summary['final_hedging_error']:,.4f} ISK")
 
-    chart_specs = (
+    chart_specs = [
         (["stock_price"], "Stock price through time", "Price (ISK)"),
         (["option_value"], "Option value through time", "Value (ISK)"),
-        (["delta", "shares_held"], "Delta and shares held", "Units"),
+        (["shares_held"], "Shares held", "Shares"),
         (["cash_account", "portfolio_value"], "Cash and portfolio value", "Value (ISK)"),
         (["cumulative_transaction_costs"], "Cumulative transaction costs", "Costs (ISK)"),
-    )
-    for left, right in zip(chart_specs[::2], chart_specs[1::2]):
-        columns = st.columns(2)
-        for container, (series, title, unit) in zip(columns, (left, right)):
+    ]
+    if "profit_loss" in data.columns:
+        chart_specs.append((["profit_loss"], "Hedged portfolio profit / loss", "Profit / loss (ISK)"))
+
+    for index in range(0, len(chart_specs), 2):
+        row = chart_specs[index : index + 2]
+        for container, (series, title, unit) in zip(st.columns(len(row)), row):
             with container:
                 show_plot(line_figure(data, "time", series, title, "Time", unit))
-    series, title, unit = chart_specs[-1]
-    show_plot(line_figure(data, "time", series, title, "Time", unit))
 
     with st.expander("Path data table"):
         st.dataframe(data, width="stretch", hide_index=True)
