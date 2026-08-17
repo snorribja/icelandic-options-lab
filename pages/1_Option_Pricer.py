@@ -5,18 +5,16 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from global_vars import ICELANDIC_STOCKS
-from option_info import OptionInfo
-from ui.dashboard import (
-    COLORS,
+from options_lab.analysis import price_and_greeks
+from options_lab.config import ICELANDIC_STOCKS
+from options_lab.option_info import OptionInfo
+from ui.charts import COLORS, show_plot, style_figure
+from ui.components import (
     configure_page,
     empty_state,
     load_risk_free_rate,
     load_stock_inputs,
     page_intro,
-    price_and_greeks,
-    show_plot,
-    style_figure,
 )
 
 

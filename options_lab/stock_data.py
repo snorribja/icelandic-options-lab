@@ -3,7 +3,7 @@ from datetime import date, timedelta
 import yfinance as yf
 import pandas as pd
 
-from global_vars import ICELANDIC_MARKET_CLOSED_DATES
+from .config import ICELANDIC_MARKET_CLOSED_DATES
 
 class StockData():
     def __init__(self, stock_name):

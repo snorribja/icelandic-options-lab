@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
-from datetime import date
+from datetime import date, timedelta
 
-from hedging import HedgeEngine
+from options_lab.hedging import HedgeEngine
+from options_lab.stock_data import StockData
 
 
 def unhedged_profit_loss_progress(hedge_engine, hedge_interval_days):
@@ -24,7 +25,7 @@ def unhedged_profit_loss_progress(hedge_engine, hedge_interval_days):
     return profit_loss_progress
 
 
-def plot_profit_loss_progress(profit_loss_progress, unhedged_profit_loss_progress, output_path="hedging_progress.png"):
+def plot_profit_loss_progress(profit_loss_progress, unhedged_profit_loss_progress, output_path="reports/figures/hedging_progress.png"):
     plt.figure(figsize=(12, 6), facecolor="#111111")
     ax = plt.gca()
     ax.set_facecolor("#111111")
@@ -55,7 +56,13 @@ if __name__ == "__main__":
     start_date = date(2024, 1, 1)
     end_date = date(2025, 1, 1)
     current_date = date(2024, 1, 1)
-    he = HedgeEngine("ALVO.IC", "call", 1700, start_date, end_date, current_date, option_quantity=100)
+    stock_data = StockData("ALVO.IC")
+    stock_price_path = {
+        start_date + timedelta(days=day): stock_data.get_current_stock_price(start_date + timedelta(days=day))
+        for day in range((end_date - start_date).days + 1)
+    }
+    pricing_volatility = stock_data.get_volatility(current_date=start_date)
+    he = HedgeEngine(stock_price_path, "call", 1700, pricing_volatility, start_date, end_date, current_date, option_quantity=100)
     unhedged_progress = unhedged_profit_loss_progress(he, 7)
     he.current_date = current_date
     path_df, summary = he.hedge_simulation(7)

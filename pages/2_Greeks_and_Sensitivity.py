@@ -2,15 +2,12 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from black_scholes import delta, gamma, vega
-from ui.dashboard import (
+from options_lab.analysis import price_function, spot_sensitivity_frame
+from options_lab.pricing import delta, gamma, vega
+from ui.charts import heatmap_figure, line_figure, show_plot
+from ui.components import (
     configure_page,
-    heatmap_figure,
-    line_figure,
     page_intro,
-    price_function,
-    show_plot,
-    spot_sensitivity_frame,
 )
 
 

@@ -1,15 +1,9 @@
 import numpy as np
 import streamlit as st
 
-from ui.dashboard import (
-    configure_page,
-    line_figure,
-    metric_row,
-    page_intro,
-    price_and_greeks,
-    show_plot,
-    spot_sensitivity_frame,
-)
+from options_lab.analysis import price_and_greeks, spot_sensitivity_frame
+from ui.charts import line_figure, show_plot
+from ui.components import configure_page, metric_row, page_intro
 
 
 configure_page("Scenario Mode")

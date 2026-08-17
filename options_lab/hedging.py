@@ -1,52 +1,54 @@
-from option_info import OptionInfo
-from interest_rate_data import RiskFreeRate
-from stock_data import StockData
+from .option_info import OptionInfo
+from .interest_rate_data import RiskFreeRate
 
 from datetime import date, timedelta
 import numpy as np
 import pandas as pd
 
+#! this uses fixed pricing_volatility but we should make it rolling
+
 class HedgeEngine():
-    def __init__(self, stock_name: str, option_type: str, strike_price: float, start_date: date, end_date: date, current_date: date, option_quantity: float = 1):
-        self.stock_data = StockData(stock_name=stock_name)
+    def __init__(self, option_type: str, strike_price: float, pricing_volatility: float, start_date: date, end_date: date, current_date: date, stock_price_path: dict | None, option_quantity: float = 1):
+        self.stock_price_path = stock_price_path
         self.option_type = option_type
         self.strike_price = strike_price
+        self.pricing_volatility = pricing_volatility
         self.start_date = start_date
         self.end_date = end_date
         self.current_date = current_date
         self.option_quantity = option_quantity
         self.option_info = OptionInfo()
         self.risk_free_rate = RiskFreeRate(start_date=self.start_date, end_date=self.end_date)
-        self.original_option_price = self.get_option_price()
 
         
     def get_option_price(self):
         return self.option_info.price(
             option_type=self.option_type, 
             stock_price=self.current_stock_price(),
-            strike_price=self.strike_price, 
-            volatility=self.volatility(), 
-            rate=self.risk_free_rate, 
+            strike_price=self.strike_price,
+            volatility=self.pricing_volatility,
+            rate=self.risk_free_rate,
             start_date=self.start_date, 
-            end_date=self.end_date, 
+            end_date=self.end_date,
             current_date=self.current_date)
 
     def get_delta(self):
         return self.option_info.option_delta(
-            option_type=self.option_type, 
+            option_type=self.option_type,
             stock_price=self.current_stock_price(), 
             strike_price=self.strike_price, 
-            volatility=self.volatility(), 
-            rate=self.risk_free_rate, 
+            volatility=self.pricing_volatility, 
+            rate=self.risk_free_rate,
             start_date=self.start_date, 
-            end_date=self.end_date, 
+            end_date=self.end_date,
             current_date=self.current_date)
         
     def current_stock_price(self):
-        return self.stock_data.get_current_stock_price(current_date=self.current_date)
-
-    def volatility(self):
-        return self.stock_data.get_volatility(current_date=self.current_date)
+        #! fix here there if we cant find the date, like in the stock data class
+        try:
+            return self.stock_price_path[self.current_date]
+        except KeyError:
+            raise ValueError(f"No price found for {self.current_date}")
 
     def hedge_amount(self, shares_held: float, current_delta=None):
         """Returns the amount of underlying stock to buy or short. 
@@ -63,7 +65,7 @@ class HedgeEngine():
             raise ValueError("hedging interval days must be positive")
 
         hedging_rounds = int(np.ceil((self.end_date - self.current_date).days / hedge_interval_days))
-        original_portfolio_value = self.original_option_price * self.option_quantity
+        original_portfolio_value = self.get_option_price() * self.option_quantity
         path_data = list()
         shares_held = 0
         cash_account = 0
@@ -116,5 +118,5 @@ class HedgeEngine():
         })
 
         path_df = pd.DataFrame(path_data)
-        summary = {"final_hedging_error": final_hedging_error}
+        summary = {"final_hedging_error": final_hedging_error, "stock_price": current_stock_price, "option_payoff": option_payoff, "cumulative_transaction_costs": cumulative_transaction_costs}
         return path_df, summary

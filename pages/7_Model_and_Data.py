@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 
-from ui.dashboard import configure_page, page_intro
+from ui.components import configure_page, page_intro
 
 
 configure_page("Model & Data")
@@ -15,7 +15,7 @@ implemented_tab, limitations_tab, planned_tab = st.tabs(["Currently implemented"
 with implemented_tab:
     st.subheader("Black–Scholes implementation")
     st.markdown(
-        "- European call and put pricing in `black_scholes.py`\n"
+        "- European call and put pricing in `options_lab/pricing.py`\n"
         "- No dividend yield\n"
         "- Decimal rate and volatility inputs\n"
         "- `T` and `t` measured in years, with time to maturity equal to `T - t`\n"

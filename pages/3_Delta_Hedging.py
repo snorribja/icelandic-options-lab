@@ -3,10 +3,11 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
-from global_vars import ICELANDIC_STOCKS
-from hedging import HedgeEngine
-from ui.dashboard import configure_page, empty_state, page_intro
-from ui.renderers import render_hedging_results
+from options_lab.config import ICELANDIC_STOCKS
+from options_lab.hedging import HedgeEngine
+from options_lab.stock_data import StockData
+from ui.charts import render_hedging_results
+from ui.components import configure_page, empty_state, page_intro
 
 
 configure_page("Delta Hedging")
@@ -62,7 +63,7 @@ with st.sidebar:
         run_hedge = st.form_submit_button("Run historical hedge", type="primary", width="stretch")
 
 st.subheader("Configured scenario")
-st.caption("The engine resolves stock prices, historical volatility, and the Icelandic rate from its existing data sources.")
+st.caption("The page resolves the historical stock path and fixed start-date volatility; the engine resolves the Icelandic rate.")
 st.dataframe(
     pd.DataFrame(
         [
@@ -74,7 +75,7 @@ st.dataframe(
             ("Option quantity", f"{option_quantity:,}", "One option represents one underlying share"),
             ("Hedge interval", f"Every {hedge_interval_days} calendar days", "Final interval is shortened to reach expiry"),
             ("Stock path", "Automatic", "Yahoo Finance adjusted close"),
-            ("Pricing volatility", "Automatic", "60-calendar-day historical estimate at each hedge date"),
+            ("Pricing volatility", "Automatic", "Fixed 60-calendar-day historical estimate at the start date"),
             ("Risk-free rate", "Automatic", "Icelandic rate resolved once for the contract term"),
             ("Transaction costs", "0.00 ISK", "Not implemented in the current engine"),
         ],
@@ -91,10 +92,17 @@ if run_hedge:
     else:
         try:
             with st.spinner(f"Loading market data and hedging {ticker}…"):
+                stock_data = StockData(ticker)
+                stock_price_path = {
+                    start_date + timedelta(days=day): stock_data.get_current_stock_price(start_date + timedelta(days=day))
+                    for day in range((end_date - start_date).days + 1)
+                }
+                pricing_volatility = stock_data.get_volatility(current_date=start_date)
                 engine = HedgeEngine(
-                    stock_name=ticker,
+                    stock_price_path=stock_price_path,
                     option_type=option_type,
                     strike_price=float(strike),
+                    pricing_volatility=pricing_volatility,
                     start_date=start_date,
                     end_date=end_date,
                     current_date=start_date,

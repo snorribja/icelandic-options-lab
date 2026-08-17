@@ -3,28 +3,10 @@ from __future__ import annotations
 from datetime import date
 from html import escape
 
-import numpy as np
-import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
-from black_scholes import (
-    call_option_price,
-    delta,
-    gamma,
-    put_option_price,
-    rho,
-    theta,
-    vega,
-)
-from interest_rate_data import RiskFreeRate
-from stock_data import StockData
-
-
-ACCENT = "#4993F3"
-COLORS = (ACCENT, "#3DBEF5", "#FBCB50", "#A78BFA", "#FB7185")
-LINE_COLORS = (ACCENT, "#FBCB50", "#3DBEF5", "#A78BFA", "#FB7185")
-PLOT_CONFIG = {"displaylogo": False, "responsive": True}
+from options_lab.interest_rate_data import RiskFreeRate
+from options_lab.stock_data import StockData
 
 
 def configure_page(title: str) -> None:
@@ -287,141 +269,6 @@ def metric_row(metrics: list[tuple[str, str, str | None]]) -> None:
     for column, (label, value, help_text) in zip(st.columns(len(metrics)), metrics):
         column.metric(label, value, help=help_text)
 
-
-def price_function(option_type: str):
-    if option_type == "call":
-        return call_option_price
-    if option_type == "put":
-        return put_option_price
-    raise ValueError("option_type must be 'call' or 'put'")
-
-
-def price_and_greeks(
-    option_type: str,
-    spot: float | np.ndarray,
-    strike: float,
-    maturity: float | np.ndarray,
-    volatility: float | np.ndarray,
-    rate: float,
-) -> dict[str, float | np.ndarray]:
-    """Call the existing model functions without adding pricing logic."""
-    arguments = {
-        "S": spot,
-        "K": strike,
-        "T": maturity,
-        "t": 0.0,
-        "volatility": volatility,
-        "r": rate,
-    }
-    return {
-        "Price": price_function(option_type)(**arguments),
-        "Delta": delta(option=option_type, **arguments),
-        "Gamma": gamma(**arguments),
-        "Vega": vega(**arguments),
-        "Theta": theta(option=option_type, **arguments),
-        "Rho": rho(option=option_type, **arguments),
-    }
-
-
-def spot_sensitivity_frame(
-    option_type: str,
-    spot: float,
-    strike: float,
-    volatility: float,
-    maturity: float,
-    rate: float,
-    points: int = 81,
-    width: float = 0.5,
-) -> pd.DataFrame:
-    spots = np.linspace(max(0.01, spot * (1 - width)), spot * (1 + width), points)
-    values = price_and_greeks(option_type, spots, strike, maturity, volatility, rate)
-    values["Vega"] = values["Vega"] / 100
-    values["Theta"] = values["Theta"] / 365
-    values["Rho"] = values["Rho"] / 100
-    return pd.DataFrame({"Spot": spots, **values})
-
-
-def line_figure(
-    data: pd.DataFrame,
-    x: str,
-    series: list[str],
-    title: str,
-    x_title: str,
-    y_title: str,
-) -> go.Figure:
-    figure = go.Figure()
-    for index, column in enumerate(series):
-        figure.add_trace(
-            go.Scatter(
-                x=data[x],
-                y=data[column],
-                mode="lines",
-                name=column,
-                line={"color": LINE_COLORS[index % len(LINE_COLORS)], "width": 2},
-                hovertemplate=f"{x}: %{{x:,.4f}}<br>{column}: %{{y:,.6f}}<extra></extra>",
-            )
-        )
-    return style_figure(figure, title, x_title, y_title)
-
-
-def heatmap_figure(
-    x: np.ndarray,
-    y: np.ndarray,
-    z: np.ndarray,
-    title: str,
-    x_title: str,
-    y_title: str,
-    value_title: str,
-) -> go.Figure:
-    figure = go.Figure(
-        go.Heatmap(
-            x=x,
-            y=y,
-            z=z,
-            colorscale="Cividis",
-            colorbar={
-                "title": {"text": value_title, "side": "top", "font": {"size": 13}},
-                "tickfont": {"size": 13},
-                "ticks": "outside",
-                "ticklen": 5,
-                "thickness": 36,
-                "len": 0.92,
-                "x": 0.87,
-                "xanchor": "left",
-                "outlinewidth": 0,
-            },
-            hovertemplate=(
-                f"{x_title}: %{{x:,.4f}}<br>{y_title}: %{{y:,.4f}}"
-                f"<br>{value_title}: %{{z:,.6f}}<extra></extra>"
-            ),
-        )
-    )
-    figure = style_figure(figure, title, x_title, y_title)
-    figure.update_xaxes(domain=[0.0, 0.82])
-    return figure
-
-
-def style_figure(figure: go.Figure, title: str, x_title: str, y_title: str) -> go.Figure:
-    figure.update_layout(
-        title={"text": title, "x": 0.01, "xanchor": "left", "font": {"family": "Geist, sans-serif"}},
-        xaxis_title=x_title,
-        yaxis_title=y_title,
-        template="plotly_dark",
-        paper_bgcolor="#101823",
-        plot_bgcolor="#101823",
-        font={"color": "#CED5DE", "family": "Inter, sans-serif"},
-        hoverlabel={"font_family": "Inter, sans-serif"},
-        legend={"orientation": "h", "y": 1.08, "x": 0},
-        margin={"l": 48, "r": 24, "t": 72, "b": 48},
-        height=390,
-    )
-    figure.update_xaxes(gridcolor="#2B3B50", zerolinecolor="#61728A")
-    figure.update_yaxes(gridcolor="#2B3B50", zerolinecolor="#61728A")
-    return figure
-
-
-def show_plot(figure: go.Figure) -> None:
-    st.plotly_chart(figure, width="stretch", config=PLOT_CONFIG)
 
 
 @st.cache_data(ttl=900, show_spinner=False)

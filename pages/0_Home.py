@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 
-from ui.dashboard import configure_page, page_intro
+from ui.components import configure_page, page_intro
 
 
 configure_page("Home")

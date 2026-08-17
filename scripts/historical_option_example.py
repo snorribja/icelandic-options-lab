@@ -4,9 +4,9 @@ from datetime import date, timedelta
 import matplotlib.pyplot as plt
 import numpy as np
 
-from interest_rate_data import RiskFreeRate
-from option_info import OptionInfo
-from stock_data import StockData
+from options_lab.interest_rate_data import RiskFreeRate
+from options_lab.option_info import OptionInfo
+from options_lab.stock_data import StockData
 
 random.seed(202)
 

@@ -4,7 +4,7 @@ import numpy as np
 from io import StringIO, BytesIO
 from datetime import date, timedelta, datetime
 from openpyxl import load_workbook
-from global_vars import CBI_RATE_URL, NASDAQ_FIXED_DURATION_YIELD_URL, REIBOR_SERIES
+from .config import CBI_RATE_URL, NASDAQ_FIXED_DURATION_YIELD_URL, REIBOR_SERIES
 
 class RiskFreeRate(float):
     def __new__(cls, start_date: date, end_date: date):

@@ -1,6 +1,6 @@
 from datetime import date
 
-from black_scholes import call_option_price, put_option_price, delta, gamma
+from .pricing import call_option_price, put_option_price, delta, gamma
 
 
 class OptionInfo():
