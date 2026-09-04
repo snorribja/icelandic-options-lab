@@ -30,7 +30,7 @@ class MonteCarlo:
             end_date=self.end_date,
             current_date=self.start_date,
             option_quantity=self.option_quantity,
-            pricing_volatility=
+            pricing_volatility=0.2 #! Todo fix
         )
 
         for sim_num in self.sims:
