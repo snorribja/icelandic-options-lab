@@ -6,9 +6,10 @@ import numpy as np
 import pandas as pd
 
 #! this uses fixed pricing_volatility but we should make it rolling
+#! it can trade on holidays and weekends, i need to fix that
 
 class HedgeEngine():
-    def __init__(self, option_type: str, strike_price: float, pricing_volatility: float, start_date: date, end_date: date, current_date: date, stock_price_path: dict | None, option_quantity: float = 1):
+    def __init__(self, option_type: str, strike_price: float, pricing_volatility: float, start_date: date, end_date: date, current_date: date, stock_price_path: dict | None = None, transaction_cost_per: float = 0, option_quantity: float = 1):
         self.stock_price_path = stock_price_path
         self.option_type = option_type
         self.strike_price = strike_price
@@ -17,6 +18,7 @@ class HedgeEngine():
         self.end_date = end_date
         self.current_date = current_date
         self.option_quantity = option_quantity
+        self.transaction_cost_per = transaction_cost_per
         self.option_info = OptionInfo()
         self.risk_free_rate = RiskFreeRate(start_date=self.start_date, end_date=self.end_date)
 
@@ -50,6 +52,20 @@ class HedgeEngine():
         except KeyError:
             raise ValueError(f"No price found for {self.current_date}")
 
+    """
+    def get_rolling_pricing_volatility(self):
+        start_date = self.adjust_date(current_date - timedelta(days=max(30, lookback_days)))
+
+        prices = self.adj_stock_data.loc[
+            (self.adj_stock_data.index.date >= start_date)
+            & (self.adj_stock_data.index.date <= current_date),
+            price_column
+        ].to_numpy()
+
+        log_returns = np.diff(np.log(prices))
+        return np.std(log_returns, ddof=1) * np.sqrt(252)
+    """
+
     def hedge_amount(self, shares_held: float, current_delta=None):
         """Returns the amount of underlying stock to buy or short. 
         Positive numbers represent the amount of stock to buy, negative number represents amount of stock to short"""
@@ -67,9 +83,9 @@ class HedgeEngine():
         hedging_rounds = int(np.ceil((self.end_date - self.current_date).days / hedge_interval_days))
         original_portfolio_value = self.get_option_price() * self.option_quantity
         path_data = list()
-        shares_held = 0
-        cash_account = 0
-        cumulative_transaction_costs = 0.0  # todo update when transaction-cost accounting is implemented
+        shares_held = 0.0
+        cash_account = -original_portfolio_value
+        cumulative_transaction_costs = 0.0
 
         for _ in range(hedging_rounds):
             current_stock_price = self.current_stock_price()
@@ -78,7 +94,9 @@ class HedgeEngine():
             shares_to_trade = self.hedge_amount(shares_held=shares_held, current_delta=current_delta)
             shares_held += shares_to_trade
 
-            cash_account -= shares_to_trade * current_stock_price
+            transaction_cost = abs(self.transaction_cost_per * shares_to_trade * current_stock_price)
+            cash_account -= shares_to_trade * current_stock_price + transaction_cost
+            cumulative_transaction_costs += transaction_cost
             
             current_portfolio_value = current_option_value * self.option_quantity + shares_held * current_stock_price + cash_account
             path_data.append({
@@ -90,7 +108,7 @@ class HedgeEngine():
                 "cash_account": cash_account,
                 "portfolio_value": current_portfolio_value,
                 "cumulative_transaction_costs": cumulative_transaction_costs,
-                "profit_loss": current_portfolio_value - original_portfolio_value,
+                "profit_loss": current_portfolio_value,
             })
 
             days_to_move = min(hedge_interval_days, (self.end_date - self.current_date).days)
@@ -103,8 +121,13 @@ class HedgeEngine():
         elif self.option_type == "put":
             option_payoff = max(self.strike_price - current_stock_price, 0)
 
+        shares_to_trade = -shares_held
+        transaction_cost = abs(self.transaction_cost_per * shares_to_trade * current_stock_price)
+        cash_account -= shares_to_trade * current_stock_price + transaction_cost
+        shares_held += shares_to_trade
+        cumulative_transaction_costs += transaction_cost
         current_portfolio_value = option_payoff * self.option_quantity + shares_held * current_stock_price + cash_account
-        final_hedging_error = current_portfolio_value - original_portfolio_value
+        final_hedging_error = current_portfolio_value
         path_data.append({
             "time": self.current_date,
             "stock_price": current_stock_price,
@@ -118,5 +141,14 @@ class HedgeEngine():
         })
 
         path_df = pd.DataFrame(path_data)
-        summary = {"final_hedging_error": final_hedging_error, "stock_price": current_stock_price, "option_payoff": option_payoff, "cumulative_transaction_costs": cumulative_transaction_costs}
+        net_result = final_hedging_error
+        summary = {
+            "final_hedging_error": final_hedging_error,
+            "stock_price": current_stock_price,
+            "option_payoff": option_payoff,
+            "original_portfolio_value": original_portfolio_value,
+            "cumulative_transaction_costs": cumulative_transaction_costs,
+            "net_result": net_result,
+            "net_result_percentage": (net_result / original_portfolio_value * 100) if original_portfolio_value else 0.0,
+        }
         return path_df, summary

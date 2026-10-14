@@ -51,11 +51,11 @@ class StockData():
     def get_volatility(self, lookback_days: int = 60, current_date: date = date.today(), price_column: str = "Close") -> float:
         start_date = self.adjust_date(current_date - timedelta(days=max(30, lookback_days)))
 
-        prices = self.raw_stock_data.loc[
-            (self.raw_stock_data.index.date >= start_date)
-            & (self.raw_stock_data.index.date <= current_date),
+        prices = self.adj_stock_data.loc[
+            (self.adj_stock_data.index.date >= start_date)
+            & (self.adj_stock_data.index.date <= current_date),
             price_column
-        ].to_numpy()
+        ].dropna().to_numpy()
 
         log_returns = np.diff(np.log(prices))
         return np.std(log_returns, ddof=1) * np.sqrt(252)

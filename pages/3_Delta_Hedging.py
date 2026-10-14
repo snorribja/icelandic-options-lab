@@ -54,11 +54,12 @@ with st.sidebar:
             step=1,
             help="Calendar days. Weekend and market-closure prices use the previous available trading day.",
         )
-        st.number_input(
-            "Transaction costs (%) — unsupported",
-            value=0.0,
-            disabled=True,
-            help="The current hedge engine reports zero transaction costs until its cost accounting is implemented.",
+        transaction_cost_percentage = st.number_input(
+            "Transaction costs (%)",
+            min_value=0.0,
+            value=0.1,
+            step=0.01,
+            help="Applied to traded notional at each hedge rebalance.",
         )
         run_hedge = st.form_submit_button("Run historical hedge", type="primary", width="stretch")
 
@@ -77,7 +78,7 @@ st.dataframe(
             ("Stock path", "Automatic", "Yahoo Finance adjusted close"),
             ("Pricing volatility", "Automatic", "Fixed 60-calendar-day historical estimate at the start date"),
             ("Risk-free rate", "Automatic", "Icelandic rate resolved once for the contract term"),
-            ("Transaction costs", "0.00 ISK", "Not implemented in the current engine"),
+            ("Transaction costs", f"{transaction_cost_percentage} %", "Transaction cost percantage per hedge"),
         ],
         columns=["Input", "Value", "Source / convention"],
     ),
@@ -106,6 +107,7 @@ if run_hedge:
                     start_date=start_date,
                     end_date=end_date,
                     current_date=start_date,
+                    transaction_cost_per=transaction_cost_percentage/100,
                     option_quantity=float(option_quantity),
                 )
                 path_df, summary = engine.hedge_simulation(int(hedge_interval_days))

@@ -171,7 +171,7 @@ def render_monte_carlo_results(
     results: pd.DataFrame | Mapping | None,
     summary_statistics: pd.DataFrame | Mapping | None,
 ) -> None:
-    """Render future Monte Carlo output.
+    """Render Monte Carlo output.
 
     ``results`` expects error, hedge_frequency, realized_volatility, and
     transaction_costs columns. ``summary_statistics`` is a precomputed DataFrame
@@ -188,9 +188,28 @@ def render_monte_carlo_results(
     data = _frame(results)
     if data is None or data.empty:
         empty_state(
-            "Awaiting Monte Carlo results",
-            "Monte Carlo engine not connected yet. Results, distribution charts, and CSV export will appear after it supplies a results DataFrame and precomputed statistics.",
+            "No results yet",
+            "Configure the experiment and select Run Monte Carlo to generate results.",
         )
+        return
+
+    if {"terminal_price", "return"}.issubset(data.columns):
+        first, second = st.columns(2)
+        with first:
+            histogram = px.histogram(data, x="terminal_price", title="Terminal stock-price distribution", color_discrete_sequence=[ACCENT])
+            show_plot(style_figure(histogram, "Terminal stock-price distribution", "Terminal price (ISK)", "Simulation count"))
+        with second:
+            returns = px.histogram(data, x="return", title="Simulated return distribution", color_discrete_sequence=[COLORS[1]])
+            show_plot(style_figure(returns, "Simulated return distribution", "Return", "Simulation count"))
+
+        st.download_button(
+            "Download results as CSV",
+            data.to_csv(index=False).encode("utf-8"),
+            file_name="monte_carlo_results.csv",
+            mime="text/csv",
+        )
+        with st.expander("Simulation results table"):
+            st.dataframe(data, width="stretch", hide_index=True)
         return
 
     required = {"error", "hedge_frequency", "realized_volatility", "transaction_costs"}
@@ -198,6 +217,18 @@ def render_monte_carlo_results(
     if missing:
         st.error(f"Monte Carlo results are missing required columns: {', '.join(missing)}.")
         return
+
+    frequency_values = sorted(data["hedge_frequency"].unique())
+    frequency_labels = {
+        value: "Daily" if int(value) == 1 else f"Every {int(value)} days"
+        for value in frequency_values
+    }
+    data = data.copy()
+    data["frequency_label"] = data["hedge_frequency"].map(frequency_labels)
+    if summary is not None and not summary.empty:
+        summary = summary.copy()
+        summary["frequency_label"] = summary["hedge_frequency"].map(frequency_labels)
+    frequency_order = [frequency_labels[value] for value in frequency_values]
 
     first, second = st.columns(2)
     with first:
@@ -249,6 +280,141 @@ def render_monte_carlo_results(
         file_name="monte_carlo_results.csv",
         mime="text/csv",
     )
+
+
+def render_monte_carlo_dashboard(
+    results: pd.DataFrame | Mapping | None,
+    summary_statistics: pd.DataFrame | Mapping | None,
+    *,
+    price_matrix: np.ndarray | None = None,
+    start_date=None,
+    path_count: int = 25,
+) -> None:
+    """Render the Monte Carlo research dashboard with paths and distributions."""
+    data = _frame(results)
+    summary = _frame(summary_statistics)
+    if data is None or data.empty:
+        empty_state("No results yet", "Configure the simulation and select Run Monte Carlo to generate results.")
+        return
+
+    required = {
+        "error",
+        "hedge_frequency",
+        "transaction_costs",
+        "net_result",
+        "net_result_percentage",
+    }
+    missing = sorted(required.difference(data.columns))
+    if missing:
+        st.error(f"Monte Carlo results are missing required columns: {', '.join(missing)}.")
+        return
+
+    frequency_values = sorted(data["hedge_frequency"].unique())
+    frequency_labels = {
+        value: "Daily" if int(value) == 1 else f"Every {int(value)} days"
+        for value in frequency_values
+    }
+    data = data.copy()
+    data["frequency_label"] = data["hedge_frequency"].map(frequency_labels)
+    if summary is not None and not summary.empty:
+        summary = summary.copy()
+        summary["frequency_label"] = summary["hedge_frequency"].map(frequency_labels)
+    frequency_order = [frequency_labels[value] for value in frequency_values]
+
+    if summary is not None and not summary.empty:
+        best_row = summary.loc[summary["rmse"].idxmin()]
+        first, second, third, fourth, fifth, sixth = st.columns(6)
+        first.metric("Best RMSE", f"{best_row['rmse']:,.2f} ISK")
+        second.metric("Best frequency", str(best_row["frequency_label"]))
+        third.metric("Average net result", f"{data['net_result'].mean():,.2f} ISK")
+        fourth.metric("Average net result (%)", f"{data['net_result_percentage'].mean():,.2f}%")
+        fifth.metric("Mean hedging error", f"{data['error'].mean():,.2f} ISK")
+        sixth.metric("Mean transaction costs", f"{data['transaction_costs'].mean():,.2f} ISK")
+
+    summary_tab, distribution_tab, paths_tab, data_tab = st.tabs(
+        ["Frequency trade-off", "Error distributions", "Simulated paths", "Data"]
+    )
+
+    with summary_tab:
+        if summary is not None and not summary.empty:
+            left, right = st.columns(2)
+            with left:
+                rmse = px.bar(summary, x="frequency_label", y="rmse", text_auto=".2f", category_orders={"frequency_label": frequency_order})
+                show_plot(style_figure(rmse, "Replication error by hedge frequency", "Rebalancing frequency", "RMSE (ISK)"))
+            with right:
+                costs = px.bar(summary, x="frequency_label", y="mean_transaction_costs", text_auto=".2f", category_orders={"frequency_label": frequency_order})
+                show_plot(style_figure(costs, "Average transaction costs", "Rebalancing frequency", "Average cost (ISK)"))
+            st.dataframe(summary, width="stretch", hide_index=True)
+
+    with distribution_tab:
+        violin = px.violin(
+            data,
+            x="frequency_label",
+            y="error",
+            color="frequency_label",
+            points="outliers",
+            box=True,
+            category_orders={"frequency_label": frequency_order},
+            title="Terminal hedging-error distribution",
+        )
+        show_plot(style_figure(violin, "Terminal hedging-error distribution", "Rebalancing frequency", "Hedging error (ISK)"))
+        histogram = px.histogram(
+            data,
+            x="error",
+            color="frequency_label",
+            barmode="overlay",
+            opacity=0.65,
+            nbins=30,
+            category_orders={"frequency_label": frequency_order},
+            title="Hedging errors across strategies",
+        )
+        show_plot(style_figure(histogram, "Hedging errors across strategies", "Hedging error (ISK)", "Simulation count"))
+
+    with paths_tab:
+        if price_matrix is None or start_date is None:
+            st.info("No simulated paths were supplied.")
+        else:
+            matrix = np.asarray(price_matrix)
+            displayed = min(int(path_count), matrix.shape[1])
+            path_indices = np.linspace(0, matrix.shape[1] - 1, displayed, dtype=int)
+            dates = [start_date + pd.Timedelta(days=index) for index in range(matrix.shape[0])]
+            figure = go.Figure()
+            for index in path_indices:
+                figure.add_trace(
+                    go.Scatter(
+                        x=dates,
+                        y=matrix[:, index],
+                        mode="lines",
+                        line={"width": 1, "color": ACCENT},
+                        opacity=0.22,
+                        showlegend=False,
+                        hovertemplate="%{x|%d %b %Y}<br>%{y:,.2f} ISK<extra></extra>",
+                    )
+                )
+
+            median_path = np.median(matrix, axis=1)
+            p05 = np.quantile(matrix, 0.05, axis=1)
+            p95 = np.quantile(matrix, 0.95, axis=1)
+            initial_price = float(matrix[0, 0])
+            figure.add_hline(
+                y=initial_price,
+                line_dash="dot",
+                line_color="#FFFFFF",
+                line_width=2,
+                annotation_text=f"Starting price: {initial_price:,.2f} ISK",
+                annotation_position="top left",
+            )
+            figure.add_trace(go.Scatter(x=dates, y=p95, mode="lines", line={"width": 0}, showlegend=False, hoverinfo="skip"))
+            figure.add_trace(go.Scatter(x=dates, y=p05, mode="lines", fill="tonexty", fillcolor="rgba(73,147,243,0.16)", line={"width": 0}, name="5th–95th percentile", hoverinfo="skip"))
+            figure.add_trace(go.Scatter(x=dates, y=median_path, mode="lines", line={"color": "#FBCB50", "width": 3}, name="Median path", hovertemplate="%{x|%d %b %Y}<br>%{y:,.2f} ISK<extra></extra>"))
+            figure = style_figure(figure, "Simulated stock-price paths", "Date", "Stock price (ISK)")
+            figure.update_layout(height=500)
+            show_plot(figure)
+            st.caption(f"Showing {displayed} of {matrix.shape[1]:,} simulated paths. The shaded area shows the 5th–95th percentile range.")
+
+    with data_tab:
+        st.download_button("Download results as CSV", data.to_csv(index=False).encode("utf-8"), file_name="monte_carlo_results.csv", mime="text/csv")
+        st.dataframe(data, width="stretch", hide_index=True)
 
 
 def render_research_experiment(

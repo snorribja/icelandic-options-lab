@@ -64,4 +64,3 @@ def spot_sensitivity_frame(
     values["Rho"] = values["Rho"] / 100
     return pd.DataFrame({"Spot": spots, **values})
 
-

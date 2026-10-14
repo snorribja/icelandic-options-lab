@@ -6,3 +6,4 @@ requests
 scipy
 streamlit
 yfinance
+matplotlib
